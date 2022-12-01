@@ -28,9 +28,11 @@ int main()
 
     string fns, fnc;
 
+    char c;
+
     cout << "Path to source file: ";
     cin >> fns;
-    fnc = "filtered_output.txt";
+    fnc = "output.txt";
 
     src_fp = fopen(fns.c_str(), "r");
     output_fp = fopen(fnc.c_str(), "w");
@@ -43,6 +45,17 @@ int main()
 
     fclose(src_fp);
     fclose(output_fp);
+
+
+    src_fp = fopen(fns.c_str(), "r");
+    output_fp = fopen(fnc.c_str(), "r");
+
+    cout << "\nInput File (" << fns << "):\n\n";
+    while( (c = fgetc(src_fp)) != EOF) cout << c;
+
+    cout << endl << endl << "Output File (" << fnc << "):\n\n";
+    while( (c = fgetc(output_fp)) != EOF) cout << c;
+    cout << endl << endl;
 
     return 0;
 }
