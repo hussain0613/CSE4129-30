@@ -8,7 +8,9 @@ unordered_set<string> multi_char_ops = { // multiple character operators
     "!=", "||", "&&", "|=", "&=", "^=", "<<", ">>", "<<=", ">>=", "->"
     };
 
-unordered_set<char> braces = {'(', ')', '{', '}', '[', ']'};
+unordered_set<char> paretheses = {'(', ')'};
+unordered_set<char> braces = {'{', '}'};
+unordered_set<char> brackets = {'[', ']'};
 unordered_set<string> keywords = {
     "auto","break","case","char","const","continue","default","do",
     "double","else","enum","extern","float","for","goto","if",
@@ -168,7 +170,9 @@ string get_token_type(string token)
     else if(token.size() == 1 && seperators.find(token.front()) != seperators.end()) return "sep";
     else if(token.size() == 1 && operators.find(token.front()) != operators.end()) return "op";
     else if(multi_char_ops.find(token) != multi_char_ops.end()) return "op";
-    else if(token.size() == 1 && braces.find(token.front()) != seperators.end()) return "par";
+    else if(token.size() == 1 && paretheses.find(token.front()) != paretheses.end()) return "par";
+    else if(token.size() == 1 && braces.find(token.front()) != braces.end()) return "brc";
+    else if(token.size() == 1 && brackets.find(token.front()) != brackets.end()) return "brkt";
     else if(keywords.find(token) != keywords.end()) return "kw";
     else {
         if(isalpha(token.front()) || token.front() == '_'){ // start of a possible alphanumeric token
@@ -287,7 +291,7 @@ list<pair<string, string> > tokenize(FILE *src)
                 flag2 = false;
             }
         }
-        else if(seperators.find(c) != seperators.end() || braces.find(c) != braces.end() || iswspace(c)){
+        else if(seperators.find(c) != seperators.end() || paretheses.find(c) != paretheses.end() || braces.find(c) != braces.end() || brackets.find(c) != brackets.end() || iswspace(c)){
             if(!token.empty()) {
                 flag = 1; // complete token but type unknown still
                 if(!isspace(c)) flag2 = false; // if current char not space than it needs to be checked and processed,
