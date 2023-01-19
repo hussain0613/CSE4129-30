@@ -82,23 +82,22 @@ class SymbolTable{
     unordered_map< string, unordered_map<string, int> > index; // {scope: {id_name: sl_no, ...}, ...}
     
     public:
-    void insert(string name);
+    int insert(string name, string scope, string id_type, string data_type, void *value);
     void display();
 };
 
 
 
+SymbolTable construct_table(vector<pair<string, string> > tokens);
+
+
+
 int main()
 {
-    vector<pair<string, string> > tokens = get_tokens("input.txt");
+    vector<pair<string, string> > tokens = get_tokens("input2.txt");
 
-    SymbolTable table;
+    SymbolTable table = construct_table(tokens);
 
-    for(auto itr = tokens.begin(); itr != tokens.end(); ++itr){
-        if(itr->first == "id"){
-            table.insert(itr->second);
-        }
-    }
 
     table.display();
 
@@ -282,24 +281,93 @@ vector<pair<string, string> > get_tokens(string fn)
 
 
 
-void SymbolTable::insert(string name)
+int SymbolTable::insert(string name, string scope, string id_type, string data_type, void *value)
 {
+    int flag = 2; // 0: already exists, do not insert, 1: scope exists, id does not, 2: scope, id nothing exists
     SymbolTableRow row;
     row.name = name;
     row.sl = rows.size() + 1;
     row.value = nullptr;
+    row.scope = scope;
+    row.id_type = id_type;
+    row.data_type = data_type;
+    row.value = value;
 
-    rows.push_back(row);
+    if(index.find(scope) != index.end()){
+        if(index.at(scope).find(name) == index.at(scope).end()){
+            flag = 1;
+        }else{
+            flag = 0;
+        }
+    }
+    
+    
+    if(flag){
+        rows.push_back(row);
+        if(flag == 2){
+            index[scope] = {};
+        }
+        index[scope][name] = row.sl;
+        
+    }
+    return flag;
 }
 
 
 
 void SymbolTable::display() 
 {
-    printf("Sl. No. \t Name \t Value (%d)\n", rows.size());
+    printf("Sl. No. \t Name \t Id Type \t Data Type \t Scope \t Value (%d)\n", rows.size());
     for(auto row = rows.begin(); row != rows.end(); ++row){
-        cout << row->sl << " \t " << row->name << " \t ";
-        if(row->value != nullptr) cout << row->value;
+        cout << row->sl << " \t " << row->name << " \t " << row->id_type << " \t " << row->data_type << " \t " << row->scope;
+        if(row->value != nullptr) cout << " \t " << row->value;
         cout << "\n";
     }
+}
+
+
+
+SymbolTable construct_table(vector<pair<string, string> > tokens)
+{
+    SymbolTable table;
+    string scope = "global";
+    int state = 0; // 0: global, 1: found func, 2: found params/args 3: found new params 4: end of params/args, 5: inside func
+    string last_func = "";
+    for(int i = 0; i < tokens.size(); ++i){
+        auto curr = tokens.at(i);
+        int flag = 2;
+        if(curr.first == "id"){
+            if(tokens.at(i+1).second  == "("){
+                flag = table.insert(curr.second, scope, "func", "later", nullptr);
+                last_func = curr.second;
+                if(flag) {
+                    scope = curr.second;
+                }
+                state = 1;
+            }
+            else{
+                flag = table.insert(curr.second, scope, "var", "later", nullptr);
+            }
+        }
+        else if(state == 1 && curr.second == "("){ // parameteres/arguments
+            state = 2;
+            if(scope != "global"){ // parameters
+                state = 3;
+            }
+        }
+        else if((state == 2 || state == 3) && curr.second == ")"){ // end of param of args
+            state = 4;
+        }
+        else if(state == 4 || curr.second == "{"){ // found start of func def
+            state = 5;
+            scope = last_func;
+        }
+        else if(state == 5 && curr.second == "}"){ // end of func
+            state = 0;
+            scope = "global";
+            last_func = "";
+        }
+    }
+
+    return table;
 }
