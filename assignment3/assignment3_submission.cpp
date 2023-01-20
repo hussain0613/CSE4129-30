@@ -349,6 +349,16 @@ int SymbolTable::update(string name, string scope, string value)
 }
 
 
+
+/*
+    A function to construct a SymbolTable from a vector of token_type-token pairs
+    Parameters:
+        vector<pair<string, string> > tokens - a vector containing the token types and tokens in pairs of strings
+    Returns:
+        a completed SymbolTable
+    
+    NOTE: Some serious issues are to be fixed
+*/
 SymbolTable construct_table(vector<pair<string, string> > tokens)
 {
     SymbolTable table;
