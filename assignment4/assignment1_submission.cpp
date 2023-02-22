@@ -9,7 +9,6 @@ Parses a src file and filter out the extra whitespaces and comments and write it
 
 Parameters:
     FILE *src - the source file to be filtered
-    FILE *dest - the output file where the filtered code will be written
 
 Returns: a vector of pairs containing line number and the corresponding line
 */
@@ -23,7 +22,6 @@ i.e. after the terminating character of the comment
 
 Parameters:
     char c - last read char from the file, to start detection with
-    FILE *src - src file pointer
     int *curr_line - a integer pointer pointing to the current_line_number tracker, increments the value each time encounters a new line in the comments 
 
 Returns - true if comment detected, false otherwise 
@@ -33,7 +31,7 @@ bool skip_comments(char c, FILE *src, int *curr_line);
 
 
 
-vector<pair<int, string> > filter(FILE *src, FILE *dest)
+vector<pair<int, string> > filter(FILE *src)
 {
     int curr_line = 0;
     vector<pair<int, string> > lines;
@@ -47,7 +45,6 @@ vector<pair<int, string> > filter(FILE *src, FILE *dest)
 
         flag = true;
         if(c == '"'){
-            fputc(c, dest);
             line += c;
 
             if(!fseek(src, -2L, SEEK_CUR)){
@@ -63,7 +60,6 @@ vector<pair<int, string> > filter(FILE *src, FILE *dest)
         }
         else if(!in_str && skip_comments(c, src, &curr_line));
         else if(!in_str && iswspace(c)){
-            fputc(' ', dest);
             if (line.size()> 0) line += ' '; // replacing many whitespaces with one space
                                             // however ignoring it if this is the first char for a 'line'
                                             // a likely scenario is when a file starts with some comment or empty line(s)
@@ -73,7 +69,6 @@ vector<pair<int, string> > filter(FILE *src, FILE *dest)
                 ++curr_line;
                 line = "";
             }
-            // printf("skipping wspaces\n");
             while( (c = fgetc(src)) != EOF && (iswspace(c) || skip_comments(c, src, &curr_line))){
                 if(c == '\n'){
                     if(line.size() > 0) lines.push_back({curr_line, line}); // for cases where the multiline comments
@@ -86,7 +81,6 @@ vector<pair<int, string> > filter(FILE *src, FILE *dest)
                         // so we need to check this one before fetching a new character from the src
         }
         else{
-            fputc(c, dest);
             line += c;
         }
 
@@ -102,30 +96,23 @@ vector<pair<int, string> > filter(FILE *src, FILE *dest)
 
 bool skip_comments(char c, FILE *src, int *curr_line)
 {
-    // printf("skipping comment 1 !! curr_line: %d, char: %c\n", *(curr_line), c);
     if(c == '/'){ // now there's a chance that it might be the start of a comment
         
         c = fgetc(src);
         
         if(c != EOF){
             if(c == '/'){ // surely a single-line comment
-                // printf("found single line comment\n");
                 while( (c = fgetc(src)) != EOF && c != '\n');
                 if(c == '\n') ++(*curr_line);
-                // printf("skipped comment 1 !!\n");
                 return true;
             }
             else if(c == '*'){ // surely start of a multiline comment
-                // printf("found multiline comment\n");
                 c = fgetc(src);
                 
-                // printf("in multiline comment 1, c: %c\n", c);
                 while(c != EOF){
-                    // printf("in multiline comment 2, c: %c\n", c);
                     if(c == '*'){
                         c = fgetc(src);
                         if(c == '/') { // end of the multiline comment
-                            // printf("skipped comment 2 !!\n");
                             return true;
                         }
                         else if(c == '\n') ++(*curr_line);
@@ -135,7 +122,6 @@ bool skip_comments(char c, FILE *src, int *curr_line)
                         c = fgetc(src);
                     }
                 }
-                // printf("skipped comment 3 !!\n");
                 return true; // multiline comment without ending
             }
             else{ // not a comment
@@ -145,7 +131,6 @@ bool skip_comments(char c, FILE *src, int *curr_line)
             }
         }
     }
-    // printf("skipped no comment 1 !!\n");
     return false;
 }
 

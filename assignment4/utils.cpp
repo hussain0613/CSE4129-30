@@ -78,12 +78,12 @@ int is_in_str(char ch, int curr_state)
 }
 
 
-template<class T1, class T2/*, class T3*/>
+template<class T1, class T2, class T3>
 struct _Triple{
     T1 first;
     T2 second;
-    // T3 third;
+    T3 third;
 };
 
-template<class T1, class T2>
-using Triple = struct _Triple<T1, T2>;
+template<class T1, class T2, class T3>
+using Triple = struct _Triple<T1, T2, T3>;

@@ -126,7 +126,7 @@ int SymbolTable::update(string name, string scope, string value)
         1. Unable to detect pointers
         and more
 */
-SymbolTable construct_table(vector<Triple<string, string> > tokens)
+SymbolTable construct_table(vector<Triple<string, string, int> > tokens)
 {
     SymbolTable table;
     string scope = "global";

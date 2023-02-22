@@ -34,7 +34,7 @@ A function to 'tokenize' a 'filtered' C source code.
 Here filtered means all comments and all extra white spaces are removed
 Also assumes, there's no preprocessor directives in the src file 
 
-FILE *src - the source file to tokenize
+vector<pair<int, string> > lines - lines of the filtered source code
 returns - a list of pairs of strings
     where the first element is the token type and the second element is the token
 
@@ -43,7 +43,7 @@ NOTE: Some serious issues are to be fixed
         2. can't handle using namespace std; type commands correctly
         and more
 */
-vector<Triple<string, string> > tokenize(FILE *src);
+vector<Triple<string, string, int> > tokenize(vector<pair<int, string> > lines);
 
 
 
@@ -91,125 +91,131 @@ string get_token_type(string token)
 
 
 
-vector<Triple<string, string> > tokenize(FILE *src)
+vector<Triple<string, string, int> > tokenize(vector<pair<int, string> > lines)
 {
     char c;
     int in_str = 0;
     int in_char = 0;
     string token = "", token_type = "";
     int state = 0; // 0: empty, 1: char, 2: str, 3: opt_grp, 4: op or num 5: num, 6: others
-    vector<Triple<string, string> > tokens;
+    vector<Triple<string, string, int> > tokens;
     
 
-    c = fgetc(src);
-    while( c != EOF ){
-        int flag = 0; // 0: not complete 'word' yet, 1: complete word, type still undetermined, 2: complete word, type already determined
-        bool flag2 = true; // true: read new char, false: don't read
+    // c = fgetc(src);
+    for(int i = 0; i < lines.size(); ++i){
+        for(int j = 0; j < lines.at(i).second.size(); /*++j*/){
+            c = lines.at(i).second.at(j);
+            // cout << c << endl;
+            // if(c == '
+    // while( c != EOF ){
+            int flag = 0; // 0: not complete 'word' yet, 1: complete word, type still undetermined, 2: complete word, type already determined
+            bool flag2 = true; // true: read new char, false: don't read
 
-        if(!in_str  && ((in_char = is_in_char(c, in_char)) != 0)){ // !in_str- to 'escape' any single quote (') inside a string as
-                                                                    // it does not start any 'character'
-            if(!state || state == 1){ // start of a brand new token and a char or part of an 'on going' char token
-                token += c;
-                state = 1;
-            }
-            else{ // a new char token has been found, but their is an existing unprocessed token, need to process that one first
-                flag = 1; // complete token found, yes, but type unknown still
-                flag2 = false; // direction to not read a  new char as the current char is yet to be 'proccessed'
-                in_char = 0; // not inside a char token yet technacally, 
-                             // the char token will start in the next iteration
-            }
+            if(!in_str  && ((in_char = is_in_char(c, in_char)) != 0)){ // !in_str- to 'escape' any single quote (') inside a string as
+                                                                        // it does not start any 'character'
+                if(!state || state == 1){ // start of a brand new token and a char or part of an 'on going' char token
+                    token += c;
+                    state = 1;
+                }
+                else{ // a new char token has been found, but their is an existing unprocessed token, need to process that one first
+                    flag = 1; // complete token found, yes, but type unknown still
+                    flag2 = false; // direction to not read a  new char as the current char is yet to be 'proccessed'
+                    in_char = 0; // not inside a char token yet technacally, 
+                                // the char token will start in the next iteration
+                }
 
-            if(in_char == 4){ // end of the character token has been found
-                in_char = 0; // not part of a char token anymore
-                flag = 2; // so complete token found and type is unknown because of possibility of invalid character
-                token_type = "char";
+                if(in_char == 4){ // end of the character token has been found
+                    in_char = 0; // not part of a char token anymore
+                    flag = 2; // so complete token found and type is unknown because of possibility of invalid character
+                    token_type = "char";
+                }
+                else if(in_char == -2){
+                    in_char = 0;
+                    flag = 2;
+                    token_type = "unkwn";
+                }
             }
-            else if(in_char == -2){
-                in_char = 0;
-                flag = 2;
-                token_type = "unkwn";
+            else if((in_str = is_in_str(c, in_str))){
+                if(!state || state == 2){
+                    token += c;
+                    state = 2;
+                }
+                else{
+                    flag = 1;
+                    flag2 = false;
+                    in_str = 0;
+                }
+            
+                if(in_str == 3){ // end of string found
+                    in_str = false;
+                    flag = 2;
+                    token_type = "str";
+                }
             }
-        }
-        else if((in_str = is_in_str(c, in_str))){
-            if(!state || state == 2){
-                token += c;
-                state = 2;
+            else if(operators.find(c) != operators.end()){
+                if(!state || state == 3 || state == 4){ // either start of a new op_grp token or part of an existing op_grp
+                                                        // or an operator right after a dot (.) which should be a syntax error
+                    token += c;
+                    if(c == '.' && !state) state = 4; // this dot is the first and/or only char in the token
+                    else state = 3;
+                }
+                else if(c == '.' && state == 5){ // the dot has come right after a number, so probably a decimal point
+                    token += c;
+                }
+                else{
+                    flag = 1; // complete word in token, but type unknown
+                    flag2 = false;
+                }
+            }
+            else if(isdigit(c)){
+                if(!state || state == 4 || state == 5){
+                    token += c;
+                    state = 5;
+                }
+                else if(state == 6){ // right after something that's not a char, str or any of the other things, so probably part of an identifier
+                    token += c;
+                } 
+                else{
+                    flag = 1; // complete word in token, but type unknown
+                    flag2 = false;
+                }
+            }
+            else if(seperators.find(c) != seperators.end() || paretheses.find(c) != paretheses.end() || braces.find(c) != braces.end() || brackets.find(c) != brackets.end() || iswspace(c)){
+                if(!token.empty()) {
+                    flag = 1; // complete token but type unknown still
+                    if(!isspace(c)) flag2 = false; // if current char not space than it needs to be checked and processed,
+                                                    // so directions to not read the next char, if space, will discard when reading the next char
+                }
+                else if (!iswspace(c)){ // start of a new token
+                    token += c;
+                    flag = 1; // as separators and braces are all single character token so we have found the complete token, but type not sure yet
+                }
             }
             else{
-                flag = 1;
-                flag2 = false;
-                in_str = 0;
+                if(!state || state == 6){ // start or part of a (new) unknown type of token probably keywords, identifiers or something invalid
+                    token += c;
+                    state = 6;
+                }
+                else{ // previous token not yet processed
+                    flag = 1;
+                    flag2 = false;
+                }
             }
-        
-            if(in_str == 3){ // end of string found
-                in_str = false;
-                flag = 2;
-                token_type = "str";
-            }
-        }
-        else if(operators.find(c) != operators.end()){
-            if(!state || state == 3 || state == 4){ // either start of a new op_grp token or part of an existing op_grp
-                                                    // or an operator right after a dot (.) which should be a syntax error
-                token += c;
-                if(c == '.' && !state) state = 4; // this dot is the first and/or only char in the token
-                else state = 3;
-            }
-            else if(c == '.' && state == 5){ // the dot has come right after a number, so probably a decimal point
-                token += c;
-            }
-            else{
-                flag = 1; // complete word in token, but type unknown
-                flag2 = false;
-            }
-        }
-        else if(isdigit(c)){
-            if(!state || state == 4 || state == 5){
-                token += c;
-                state = 5;
-            }
-            else if(state == 6){ // right after something that's not a char, str or any of the other things, so probably part of an identifier
-                token += c;
-            } 
-            else{
-                flag = 1; // complete word in token, but type unknown
-                flag2 = false;
-            }
-        }
-        else if(seperators.find(c) != seperators.end() || paretheses.find(c) != paretheses.end() || braces.find(c) != braces.end() || brackets.find(c) != brackets.end() || iswspace(c)){
-            if(!token.empty()) {
-                flag = 1; // complete token but type unknown still
-                if(!isspace(c)) flag2 = false; // if current char not space than it needs to be checked and processed,
-                                                // so directions to not read the next char, if space, will discard when reading the next char
-            }
-            else if (!iswspace(c)){ // start of a new token
-                token += c;
-                flag = 1; // as separators and braces are all single character token so we have found the complete token, but type not sure yet
-            }
-        }
-        else{
-            if(!state || state == 6){ // start or part of a (new) unknown type of token probably keywords, identifiers or something invalid
-                token += c;
-                state = 6;
-            }
-            else{ // previous token not yet processed
-                flag = 1;
-                flag2 = false;
-            }
-        }
 
-        if(flag == 1){
-            token_type = get_token_type(token);
-        }
-        if(flag){
-            tokens.push_back({token_type, token});
-            token = ""; // resetting token
-            state = 0; // resetting state
-        }
+            if(flag == 1){
+                token_type = get_token_type(token);
+            }
+            if(flag){
+                tokens.push_back({token_type, token, lines.at(i).first});
+                token = ""; // resetting token
+                state = 0; // resetting state
+            }
 
-        if(flag2){
-            c = fgetc(src);
+            if(flag2){
+                // c = fgetc(src);
+                ++j;
+            }
         }
-
     }
     return tokens;
 }
